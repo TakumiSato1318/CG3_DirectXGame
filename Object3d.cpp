@@ -31,7 +31,7 @@ XMFLOAT3 Object3d::up = { 0, 1, 0 };
 D3D12_VERTEX_BUFFER_VIEW Object3d::vbView{};
 D3D12_INDEX_BUFFER_VIEW Object3d::ibView{};
 Object3d::VertexPosNormalUv Object3d::vertices[vertexCount];
-unsigned short Object3d::indices[planeCount * 3];
+ unsigned short Object3d::indices[indexCount];
 
 void Object3d::StaticInitialize(ID3D12Device * device, int window_width, int window_height)
 {
@@ -120,12 +120,21 @@ void Object3d::CameraMoveVector(XMFLOAT3 move)
 	eye_moved.y += move.y;
 	eye_moved.z += move.z;
 
-	target_moved.x += move.x;
+	/*target_moved.x += move.x;
 	target_moved.y += move.y;
-	target_moved.z += move.z;
+	target_moved.z += move.z;*/
 
 	SetEye(eye_moved);
 	SetTarget(target_moved);
+}
+
+void Object3d::CameraMoveEyeVector(XMFLOAT3 move)
+{
+	XMFLOAT3 eye_moved = GetEye();
+	eye_moved.x += move.x;
+	eye_moved.y += move.y;
+	eye_moved.z += move.z;
+	SetEye(eye_moved);
 }
 
 void Object3d::InitializeDescriptorHeap()
@@ -391,8 +400,27 @@ void Object3d::CreateModel()
 	HRESULT result = S_FALSE;
 
 	std::vector<VertexPosNormalUv> realVertices;
+
+	//四角形の頂点データ
+	VertexPosNormalUv verticesSquare[] = {
+		{{ -5.0f,-5.0f,0.0f},{0,0,1},{0,1}},
+		{{ -5.0f,+5.0f,0.0f},{0,0,1},{0,0}},
+		{{ +5.0f,-5.0f,0.0f},{0,0,1},{1,1}},
+		{{ +5.0f,+5.0f,0.0f},{0,0,1},{1,0}},
+		};
+	//メンバ変数にコピー
+	std::copy(std::begin(verticesSquare), std::end(verticesSquare), vertices);
+
+	//四角形のインデックスデータ
+	unsigned short indicesSquare[] = {
+		0,1,2,//三角形
+		2,1,3,//三角形2
+	};
+	//メンバ変数にコピー
+	std::copy(std::begin(indicesSquare), std::end(indicesSquare), indices);
+
 	// 頂点座標の計算（重複あり）
-	{
+	/* {
 		realVertices.resize((division + 1) * 2);
 		int index = 0;
 		float zValue;
@@ -419,8 +447,8 @@ void Object3d::CreateModel()
 			realVertices[index++].pos = vertex;
 		}
 		realVertices[index++].pos = XMFLOAT3(0, 0, zValue);	// 天面の中心点
-	}
-
+	}*/
+	/*
 	// 頂点座標の計算（重複なし）
 	{
 		int index = 0;
@@ -476,7 +504,8 @@ void Object3d::CreateModel()
 			vertices[index++] = realVertices[index3];
 		}
 	}
-
+	*/
+	/*
 	// 頂点インデックスの設定
 	{
 		for (int i = 0; i < _countof(indices); i++)
@@ -484,7 +513,8 @@ void Object3d::CreateModel()
 			indices[i] = i;
 		}
 	}
-
+	*/
+	/*
 	// 法線方向の計算
 	for (int i = 0; i < _countof(indices) / 3; i++)
 	{// 三角形１つごとに計算していく
@@ -508,7 +538,7 @@ void Object3d::CreateModel()
 		XMStoreFloat3(&vertices[index1].normal, normal);
 		XMStoreFloat3(&vertices[index2].normal, normal);
 	}
-
+	*/
 	UINT sizeVB = static_cast<UINT>(sizeof(vertices));
 
 	// ヒーププロパティ
