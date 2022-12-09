@@ -107,27 +107,7 @@ ParticleManager * ParticleManager::Create()
 		return nullptr;
 	}
 
-	for (int i = 0; i < vertexCount; i++) {
-		//X,Y,Z全て[-5.0f,+5.0f]でランダムに分布
-		const float rnd_pos = 10.0f;
-		XMFLOAT3 pos{};
-		pos.x = (float)rand() / RAND_MAX * rnd_pos - rnd_pos / 2.0f;
-		pos.y = (float)rand() / RAND_MAX * rnd_pos - rnd_pos / 2.0f;
-		pos.z = (float)rand() / RAND_MAX * rnd_pos - rnd_pos / 2.0f;
-		//X,Y,Z全て[-0.05f,+0.05f]でランダムに分布
-		const float rnd_vel = 0.1f;
-		XMFLOAT3 vel{};
-		vel.x = (float)rand() / RAND_MAX * rnd_vel - rnd_vel / 2.0f;
-		vel.y = (float)rand() / RAND_MAX * rnd_vel - rnd_vel / 2.0f;
-		vel.z = (float)rand() / RAND_MAX * rnd_vel - rnd_vel / 2.0f;
-		//重力に見立ててYのみ[-0.001f,0]でランダムに分布
-		XMFLOAT3 acc{};
-		const float rnd_acc = 0.001f;
-		acc.y = -(float)rand() / RAND_MAX * rnd_acc;
-
-		//追加
-		particleMan->Add(60, pos, vel, acc);
-	}
+	
 
 	return particleMan;
 }
@@ -298,16 +278,11 @@ void ParticleManager::InitializeGraphicsPipeline()
 			D3D12_APPEND_ALIGNED_ELEMENT,
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
 		},
-		//{ // 法線ベクトル(1行で書いたほうが見やすい)
-		//	"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
-		//	D3D12_APPEND_ALIGNED_ELEMENT,
-		//	D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
-		//},
-		//{ // uv座標(1行で書いたほうが見やすい)
-		//	"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0,
-		//	D3D12_APPEND_ALIGNED_ELEMENT,
-		//	D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
-		//},
+		{//スケール
+			"TEXCOORD",0,DXGI_FORMAT_R32_FLOAT,0,
+			D3D12_APPEND_ALIGNED_ELEMENT,
+			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0
+		},
 	};
 
 	// グラフィックスパイプラインの流れを設定
@@ -477,32 +452,6 @@ void ParticleManager::CreateModel()
 	HRESULT result = S_FALSE;
 
 	std::vector<VertexPos> realVertices;
-
-	//四角形の頂点データ
-	//VertexPosNormalUv verticesSquare[] = {
-	//	{{ -5.0f,-5.0f,0.0f},{0,0,1},{0,1}},
-	//	{{ -5.0f,+5.0f,0.0f},{0,0,1},{0,0}},
-	//	{{ +5.0f,-5.0f,0.0f},{0,0,1},{1,1}},
-	//	{{ +5.0f,+5.0f,0.0f},{0,0,1},{1,0}},
-	//	};
-	////メンバ変数にコピー
-	//std::copy(std::begin(verticesSquare), std::end(verticesSquare), vertices);
-
-	//頂点データ
-	//VertexPos verticesPoint[] = {
-	//	//{{0.0f,0.0f,0.0f},{0,0,1},{0,1}},
-	//	{{0.0f,0.0f,0.0f}},
-	//};
-	////メンバ変数にコピー
-	//std::copy(std::begin(verticesPoint), std::end(verticesPoint), vertices);
-
-	//for (int i = 0; i < vertexCount; i++) {
-	//	//X,Y,Z全て[-5.0f,+5.0f]でランダムに分布
-	//	const float rnd_width = 10.0f;
-	//	vertices[i].pos.x = (float)rand() / RAND_MAX * rnd_width - rnd_width / 2.0f;
-	//	vertices[i].pos.y = (float)rand() / RAND_MAX * rnd_width - rnd_width / 2.0f;
-	//	vertices[i].pos.z = (float)rand() / RAND_MAX * rnd_width - rnd_width / 2.0f;
-	//}
 
 	//四角形のインデックスデータ
 	unsigned short indicesSquare[] = {
@@ -681,16 +630,21 @@ void ParticleManager::Update()
 	HRESULT result;
 
 	//寿命が尽きたパーティクルを全削除
-	/*particles.remove_if(
+	particles.remove_if(
 		[](Particle& x) {
 			return x.frame >= x.num_frame;
 		}
-	);*/
+	);
 
 	//全パーティクル更新
 	for (std::forward_list<Particle>::iterator it = particles.begin();
 		it != particles.end();
 		it++) {
+		//進行時を０～１の範囲に換算
+		float f = (float)it->frame / it->num_frame;
+		//スケールの線形補間
+		it->scale = (it->e_scale - it->s_scale) * f;
+		it->scale += it->s_scale;
 		//経過フレーム数をカウント
 		it->frame++;
 		//速度に加速度を加算
@@ -707,6 +661,8 @@ void ParticleManager::Update()
 		for (std::forward_list<Particle>::iterator it = particles.begin();
 			it != particles.end();
 			it++) {
+			//スケール
+			vertMap->scale = it->scale;
 			//座標
 			vertMap->pos = it->position;
 			//次の頂点へ
@@ -748,7 +704,8 @@ void ParticleManager::Draw()
 	//cmdList->DrawIndexedInstanced(3, 1, 0, 0, 0);
 }
 
-void ParticleManager::Add(int life, XMFLOAT3 position, XMFLOAT3 velocity, XMFLOAT3 accel)
+void ParticleManager::Add(int life, XMFLOAT3 position, XMFLOAT3 velocity, XMFLOAT3 accel,
+	float start_scale, float end_scale)
 {
 	//リストに要素を追加
 	particles.emplace_front();
@@ -759,4 +716,8 @@ void ParticleManager::Add(int life, XMFLOAT3 position, XMFLOAT3 velocity, XMFLOA
 	p.velocity = velocity;
 	p.accel = accel;
 	p.num_frame = life;
+	//スケール
+	p.scale = start_scale;
+	p.s_scale = start_scale;
+	p.e_scale = end_scale;
 }
